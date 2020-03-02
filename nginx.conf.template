@@ -1,0 +1,56 @@
+# 调试使用，真正使用的是nginx.conf.template，通过start.sh注入
+
+user root;
+worker_processes 4;
+pid /run/nginx.pid;
+
+events {
+  worker_connections  1024;
+}
+
+http {
+  sendfile on;
+  tcp_nopush on;
+  tcp_nodelay on;
+  keepalive_timeout 65;
+  types_hash_max_size 2048;
+
+  include /etc/nginx/mime.types;
+  default_type application/octet-stream;
+
+  access_log /app/access.log;
+  error_log /app/error.log;
+  gzip on;
+
+  server {
+      listen          80;
+      server_name     localhost;
+
+      location ${LOCATION_PATH} {
+        if ($request_method = 'OPTIONS') {
+            add_header 'Access-Control-Allow-Origin' '*';
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
+            #
+            # Custom headers and headers various browsers *should* be OK with but aren't
+            #
+            add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range';
+            #
+            # Tell client that this pre-flight info is valid for 20 days
+            #
+            add_header 'Access-Control-Max-Age' 1728000;
+            add_header 'Content-Type' 'text/plain; charset=utf-8';
+            add_header 'Content-Length' 0;
+            return 204;
+        }
+        
+        add_header 'Access-Control-Allow-Origin' '*';
+        add_header 'Access-Control-Allow-Methods' 'HEAD, GET, POST, PUT, DELETE, CONNECT, OPTIONS, TRACE, PATCH';
+        add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range';
+        add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range';
+
+        
+        proxy_pass ${PROXY_PASS_ADDR};
+      }
+
+  }
+}
